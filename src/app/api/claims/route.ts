@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/db";
+import { claims, reports } from "@/db/schema";
 import { createClaimSchema } from "@/lib/validators/report";
+import { eq, and } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
@@ -18,19 +20,16 @@ export async function POST(request: Request) {
     const validated = createClaimSchema.parse(body);
 
     // Get the report
-    const report = await prisma.report.findUnique({
-      where: { id: validated.reportId },
-      include: { user: true },
-    });
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, validated.reportId))
+      .limit(1);
 
     if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    // Can only claim FOUND items
     if (report.type !== "FOUND") {
       return NextResponse.json(
         { error: "Can only claim found items" },
@@ -38,7 +37,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Can't claim your own item
     if (report.userId === session.user.id) {
       return NextResponse.json(
         { error: "Cannot claim your own item" },
@@ -47,31 +45,33 @@ export async function POST(request: Request) {
     }
 
     // Check for existing claim
-    const existingClaim = await prisma.claim.findUnique({
-      where: {
-        reportId_claimerId: {
-          reportId: validated.reportId,
-          claimerId: session.user.id,
-        },
-      },
-    });
+    const [existing] = await db
+      .select()
+      .from(claims)
+      .where(
+        and(
+          eq(claims.reportId, validated.reportId),
+          eq(claims.claimerId, session.user.id)
+        )
+      )
+      .limit(1);
 
-    if (existingClaim) {
+    if (existing) {
       return NextResponse.json(
         { error: "You have already submitted a claim for this item" },
         { status: 400 }
       );
     }
 
-    // Create the claim
-    const claim = await prisma.claim.create({
-      data: {
+    const [claim] = await db
+      .insert(claims)
+      .values({
         reportId: validated.reportId,
         claimerId: session.user.id,
         proofText: validated.proofText,
         verificationAnswer: validated.verificationAnswer ?? null,
-      },
-    });
+      })
+      .returning({ id: claims.id });
 
     return NextResponse.json(
       { message: "Claim submitted successfully", id: claim.id },
@@ -79,16 +79,8 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("Create claim error:", error);
-
-    if (error instanceof Error && error.name === "ZodError") {
-      return NextResponse.json(
-        { error: "Invalid input data" },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Something went wrong" },
       { status: 500 }
     );
   }

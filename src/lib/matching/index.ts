@@ -1,36 +1,33 @@
-import { prisma } from "@/lib/prisma";
+import { db } from "@/db";
+import { reports, categories, matches } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { calculateSimilarity } from "./similarity";
 
 const MATCH_THRESHOLD = 50;
 
 /**
  * Run matching algorithm for a newly created report.
- * Compares LOST reports against FOUND reports (and vice versa).
  */
 export async function runMatchingAlgorithm(reportId: string): Promise<void> {
-  const report = await prisma.report.findUnique({
-    where: { id: reportId },
-    include: { category: true },
-  });
+  const [report] = await db
+    .select()
+    .from(reports)
+    .where(eq(reports.id, reportId))
+    .limit(1);
 
   if (!report || report.status !== "ACTIVE") return;
 
   const oppositeType = report.type === "LOST" ? "FOUND" : "LOST";
 
-  // Find potential matching reports
-  const candidateReports = await prisma.report.findMany({
-    where: {
-      type: oppositeType,
-      status: "ACTIVE",
-    },
-    include: { category: true },
-  });
-
-  const matches: Array<{
-    lostReportId: string;
-    foundReportId: string;
-    confidenceScore: number;
-  }> = [];
+  const candidateReports = await db
+    .select()
+    .from(reports)
+    .where(
+      and(
+        eq(reports.type, oppositeType),
+        eq(reports.status, "ACTIVE")
+      )
+    );
 
   for (const candidate of candidateReports) {
     const score = calculateMatchScore(report, candidate);
@@ -39,31 +36,22 @@ export async function runMatchingAlgorithm(reportId: string): Promise<void> {
       const lostReportId = report.type === "LOST" ? report.id : candidate.id;
       const foundReportId = report.type === "FOUND" ? report.id : candidate.id;
 
-      matches.push({
-        lostReportId,
-        foundReportId,
-        confidenceScore: score,
-      });
+      // Upsert: try insert, on conflict update score
+      await db
+        .insert(matches)
+        .values({
+          lostReportId,
+          foundReportId,
+          confidenceScore: score,
+        })
+        .onConflictDoUpdate({
+          target: [matches.lostReportId, matches.foundReportId],
+          set: { confidenceScore: score },
+        });
     }
   }
 
-  // Upsert matches (avoid duplicates)
-  for (const match of matches) {
-    await prisma.match.upsert({
-      where: {
-        lostReportId_foundReportId: {
-          lostReportId: match.lostReportId,
-          foundReportId: match.foundReportId,
-        },
-      },
-      create: match,
-      update: { confidenceScore: match.confidenceScore },
-    });
-  }
-
-  console.log(
-    `Matching complete for report ${reportId}: ${matches.length} matches found`
-  );
+  console.log(`Matching complete for report ${reportId}`);
 }
 
 function calculateMatchScore(

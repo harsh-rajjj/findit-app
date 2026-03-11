@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/db";
+import { claims, reports } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(
   request: Request,
@@ -8,79 +10,41 @@ export async function POST(
 ) {
   try {
     const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    // Get the claim with report
-    const claim = await prisma.claim.findUnique({
-      where: { id },
-      include: {
-        report: true,
-      },
-    });
+    // Get the claim with its report
+    const [claim] = await db
+      .select()
+      .from(claims)
+      .where(eq(claims.id, id))
+      .limit(1);
 
     if (!claim) {
-      return NextResponse.json(
-        { error: "Claim not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Claim not found" }, { status: 404 });
     }
 
-    // Only report owner can approve
-    if (claim.report.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Only the report owner can approve claims" },
-        { status: 403 }
-      );
+    // Get the report to verify ownership
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, claim.reportId))
+      .limit(1);
+
+    if (!report || report.userId !== session.user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Update claim status
-    await prisma.claim.update({
-      where: { id },
-      data: { status: "APPROVED" },
-    });
-
-    // Mark report as resolved
-    await prisma.report.update({
-      where: { id: claim.reportId },
-      data: { status: "RESOLVED" },
-    });
-
-    // Reject other pending claims
-    await prisma.claim.updateMany({
-      where: {
-        reportId: claim.reportId,
-        id: { not: id },
-        status: "PENDING",
-      },
-      data: { status: "REJECTED" },
-    });
-
-    // Create a conversation for coordination
-    await prisma.conversation.create({
-      data: {
-        claimId: id,
-        participants: {
-          create: [
-            { userId: claim.report.userId },
-            { userId: claim.claimerId },
-          ],
-        },
-      },
-    });
+    // Approve the claim and resolve the report
+    await db.update(claims).set({ status: "APPROVED" }).where(eq(claims.id, id));
+    await db.update(reports).set({ status: "RESOLVED" }).where(eq(reports.id, claim.reportId));
 
     return NextResponse.json({ message: "Claim approved" });
   } catch (error) {
     console.error("Approve claim error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

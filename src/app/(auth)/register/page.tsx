@@ -1,127 +1,108 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import { registerSchema, type RegisterInput } from "@/lib/validators/auth";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
-  });
-
-  const onSubmit = async (data: RegisterInput) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError(null);
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const username = formData.get("username") as string;
+    const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: data.username,
-          password: data.password,
-        }),
+        body: JSON.stringify({ username, password }),
       });
 
-      const result = await response.json();
+      const data = await res.json();
 
-      if (!response.ok) {
-        setError(result.error || "Registration failed");
+      if (!res.ok) {
+        setError(data.error || "Registration failed");
+        setLoading(false);
         return;
       }
 
-      // Auto sign in after registration
-      const signInResult = await signIn("credentials", {
-        username: data.username,
-        password: data.password,
+      // Auto-login after registration
+      const result = await signIn("credentials", {
+        username,
+        password,
         redirect: false,
       });
 
-      if (signInResult?.error) {
-        setError("Account created but sign in failed. Please try logging in.");
-        return;
+      if (result?.error) {
+        router.push("/login");
+      } else {
+        router.push("/dashboard");
+        router.refresh();
       }
-
-      router.push("/dashboard");
-      router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="border border-gray-200 bg-white p-8">
-          <h1 className="text-2xl font-bold text-gray-900 text-center mb-8">
-            Create an Account
-          </h1>
-
-          {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-sm">
-              {error}
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Create Account</CardTitle>
+          <CardDescription>Sign up to start reporting lost and found items</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-md">
+                {error}
+              </div>
+            )}
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" name="username" placeholder="Choose a username" required minLength={3} />
             </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <Input
-              label="Username"
-              type="text"
-              autoComplete="username"
-              helperText="3-20 characters, letters, numbers, and underscores only"
-              error={errors.username?.message}
-              {...register("username")}
-            />
-
-            <Input
-              label="Password"
-              type="password"
-              autoComplete="new-password"
-              helperText="At least 6 characters"
-              error={errors.password?.message}
-              {...register("password")}
-            />
-
-            <Input
-              label="Confirm Password"
-              type="password"
-              autoComplete="new-password"
-              error={errors.confirmPassword?.message}
-              {...register("confirmPassword")}
-            />
-
-            <Button
-              type="submit"
-              className="w-full"
-              isLoading={isSubmitting}
-            >
-              Create Account
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" name="password" type="password" placeholder="Choose a password" required minLength={6} />
+            </div>
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input id="confirmPassword" name="confirmPassword" type="password" placeholder="Confirm your password" required />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating account..." : "Sign Up"}
             </Button>
           </form>
-
-          <p className="mt-6 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link
-              href="/login"
-              className="font-medium text-blue-800 hover:underline"
-            >
-              Log in
+            <Link href="/login" className="text-primary hover:underline font-medium">
+              Log In
             </Link>
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

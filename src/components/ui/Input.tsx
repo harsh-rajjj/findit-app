@@ -1,58 +1,19 @@
-import { forwardRef, InputHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import * as React from "react"
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  helperText?: string;
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, helperText, id, ...props }, ref) => {
-    const inputId = id || props.name;
-
-    return (
-      <div className="w-full">
-        {label && (
-          <label
-            htmlFor={inputId}
-            className="block text-sm font-medium text-gray-900 mb-1"
-          >
-            {label}
-          </label>
-        )}
-        <input
-          ref={ref}
-          id={inputId}
-          className={cn(
-            "w-full px-3 py-2 border text-gray-900 placeholder-gray-500",
-            "focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent",
-            "disabled:bg-gray-100 disabled:cursor-not-allowed",
-            error ? "border-red-600" : "border-gray-300",
-            className
-          )}
-          aria-invalid={error ? "true" : "false"}
-          aria-describedby={error ? `${inputId}-error` : undefined}
-          {...props}
-        />
-        {error && (
-          <p
-            id={`${inputId}-error`}
-            className="mt-1 text-sm text-red-600"
-            role="alert"
-          >
-            {error}
-          </p>
-        )}
-        {helperText && !error && (
-          <p className="mt-1 text-sm text-gray-500">{helperText}</p>
-        )}
-      </div>
-    );
-  }
-);
-
-Input.displayName = "Input";
-
-export { Input };
-export type { InputProps };
+export { Input }

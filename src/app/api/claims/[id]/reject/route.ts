@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/db";
+import { claims, reports } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(
   request: Request,
@@ -8,50 +10,37 @@ export async function POST(
 ) {
   try {
     const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    // Get the claim with report
-    const claim = await prisma.claim.findUnique({
-      where: { id },
-      include: {
-        report: true,
-      },
-    });
+    const [claim] = await db
+      .select()
+      .from(claims)
+      .where(eq(claims.id, id))
+      .limit(1);
 
     if (!claim) {
-      return NextResponse.json(
-        { error: "Claim not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Claim not found" }, { status: 404 });
     }
 
-    // Only report owner can reject
-    if (claim.report.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Only the report owner can reject claims" },
-        { status: 403 }
-      );
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, claim.reportId))
+      .limit(1);
+
+    if (!report || report.userId !== session.user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Update claim status
-    await prisma.claim.update({
-      where: { id },
-      data: { status: "REJECTED" },
-    });
+    await db.update(claims).set({ status: "REJECTED" }).where(eq(claims.id, id));
 
     return NextResponse.json({ message: "Claim rejected" });
   } catch (error) {
     console.error("Reject claim error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

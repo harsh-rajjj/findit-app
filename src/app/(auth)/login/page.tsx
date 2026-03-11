@@ -1,98 +1,82 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import { loginSchema, type LoginInput } from "@/lib/validators/auth";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const onSubmit = async (data: LoginInput) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError(null);
+    setLoading(true);
 
-    const result = await signIn("credentials", {
-      username: data.username,
-      password: data.password,
-      redirect: false,
-    });
+    const formData = new FormData(e.currentTarget);
+    const username = formData.get("username") as string;
+    const password = formData.get("password") as string;
 
-    if (result?.error) {
-      setError("Invalid username or password");
-      return;
+    try {
+      const result = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Invalid username or password");
+      } else {
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(callbackUrl);
-    router.refresh();
   };
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="border border-gray-200 bg-white p-8">
-          <h1 className="text-2xl font-bold text-gray-900 text-center mb-8">
-            Log In to FindIt
-          </h1>
-
-          {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-sm">
-              {error}
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Log In</CardTitle>
+          <CardDescription>Enter your credentials to access your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-md">
+                {error}
+              </div>
+            )}
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" name="username" placeholder="Enter your username" required />
             </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <Input
-              label="Username"
-              type="text"
-              autoComplete="username"
-              error={errors.username?.message}
-              {...register("username")}
-            />
-
-            <Input
-              label="Password"
-              type="password"
-              autoComplete="current-password"
-              error={errors.password?.message}
-              {...register("password")}
-            />
-
-            <Button
-              type="submit"
-              className="w-full"
-              isLoading={isSubmitting}
-            >
-              Log In
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" name="password" type="password" placeholder="Enter your password" required />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Logging in..." : "Log In"}
             </Button>
           </form>
-
-          <p className="mt-6 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="font-medium text-blue-800 hover:underline"
-            >
-              Sign up
+            <Link href="/register" className="text-primary hover:underline font-medium">
+              Sign Up
             </Link>
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

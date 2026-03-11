@@ -1,8 +1,9 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { loginSchema } from "@/lib/validators/auth";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -14,24 +15,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         try {
-          const validated = loginSchema.parse(credentials);
+          const username = credentials?.username as string;
+          const password = credentials?.password as string;
 
-          const user = await prisma.user.findUnique({
-            where: { username: validated.username },
-          });
+          if (!username || !password) return null;
 
-          if (!user) {
-            return null;
-          }
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.username, username))
+            .limit(1);
 
-          const isValidPassword = await bcrypt.compare(
-            validated.password,
-            user.passwordHash
-          );
+          if (!user) return null;
 
-          if (!isValidPassword) {
-            return null;
-          }
+          const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+          if (!isValidPassword) return null;
 
           return {
             id: user.id,

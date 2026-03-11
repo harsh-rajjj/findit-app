@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/db";
+import { reports, categories } from "@/db/schema";
+import { eq, and, or, ilike, desc, count } from "drizzle-orm";
 import { ReportCard } from "@/components/reports/ReportCard";
-import { Button } from "@/components/ui/Button";
-import type { Prisma } from "@prisma/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface BrowsePageProps {
   searchParams: Promise<{
@@ -12,83 +14,83 @@ interface BrowsePageProps {
   }>;
 }
 
-async function getCategories() {
-  const categories = await prisma.category.findMany({
-    where: { parentId: null },
-    include: { children: true },
-    orderBy: { name: "asc" },
-  });
-  return categories;
-}
-
-async function getFoundItems(params: {
-  search?: string;
-  categoryId?: string;
-  page: number;
-}) {
-  const { search, categoryId, page } = params;
-  const limit = 12;
-
-  const where: Prisma.ReportWhereInput = {
-    type: "FOUND",
-    status: "ACTIVE",
-    deletedAt: null,
-  };
-
-  if (categoryId) {
-    // Include subcategories
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
-      include: { children: true },
-    });
-
-    if (category) {
-      const categoryIds = [category.id, ...category.children.map((c) => c.id)];
-      where.categoryId = { in: categoryIds };
-    }
-  }
-
-  if (search) {
-    where.OR = [
-      { title: { contains: search, mode: "insensitive" } },
-      { description: { contains: search, mode: "insensitive" } },
-    ];
-  }
-
-  const [items, total] = await Promise.all([
-    prisma.report.findMany({
-      where,
-      include: { category: true },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.report.count({ where }),
-  ]);
-
-  return {
-    items,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
-}
-
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const params = await searchParams;
   const currentPage = parseInt(params.page || "1");
-  
-  const [categories, { items, pagination }] = await Promise.all([
-    getCategories(),
-    getFoundItems({
-      search: params.search,
-      categoryId: params.categoryId,
-      page: currentPage,
-    }),
-  ]);
+  const limit = 12;
+
+  // Get all categories
+  const allCategories = await db.select().from(categories).orderBy(categories.name);
+
+  // Build filters
+  const conditions = [eq(reports.type, "FOUND"), eq(reports.status, "ACTIVE")];
+  if (params.categoryId) {
+    conditions.push(eq(reports.categoryId, params.categoryId));
+  }
+
+  // Get items with search
+  let items;
+  let total;
+
+  if (params.search) {
+    const searchCondition = or(
+      ilike(reports.title, `%${params.search}%`),
+      ilike(reports.description, `%${params.search}%`)
+    );
+    
+    const rows = await db
+      .select({
+        id: reports.id, type: reports.type, title: reports.title,
+        description: reports.description, status: reports.status,
+        createdAt: reports.createdAt,
+        categoryName: categories.name, categoryIcon: categories.icon,
+      })
+      .from(reports)
+      .leftJoin(categories, eq(reports.categoryId, categories.id))
+      .where(and(...conditions, searchCondition))
+      .orderBy(desc(reports.createdAt))
+      .offset((currentPage - 1) * limit)
+      .limit(limit);
+
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(reports)
+      .where(and(...conditions, searchCondition));
+
+    items = rows;
+    total = totalRow.value;
+  } else {
+    const rows = await db
+      .select({
+        id: reports.id, type: reports.type, title: reports.title,
+        description: reports.description, status: reports.status,
+        createdAt: reports.createdAt,
+        categoryName: categories.name, categoryIcon: categories.icon,
+      })
+      .from(reports)
+      .leftJoin(categories, eq(reports.categoryId, categories.id))
+      .where(and(...conditions))
+      .orderBy(desc(reports.createdAt))
+      .offset((currentPage - 1) * limit)
+      .limit(limit);
+
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(reports)
+      .where(and(...conditions));
+
+    items = rows;
+    total = totalRow.value;
+  }
+
+  const totalPages = Math.ceil(total / limit);
+
+  const formattedItems = items.map(item => ({
+    id: item.id, type: item.type, title: item.title,
+    description: item.description, status: item.status,
+    createdAt: item.createdAt,
+    category: item.categoryName ? { name: item.categoryName, icon: item.categoryIcon } : null,
+  }));
 
   const buildUrl = (newParams: Record<string, string | undefined>) => {
     const urlParams = new URLSearchParams();
@@ -104,20 +106,17 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar Filters */}
         <aside className="w-full md:w-64 flex-shrink-0">
-          <div className="border border-gray-200 bg-white p-4">
-            <h2 className="font-semibold text-gray-900 mb-4">Filters</h2>
+          <div className="border rounded-md bg-card p-4">
+            <h2 className="font-semibold mb-4">Filters</h2>
 
             {/* Search */}
             <form className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Search
-              </label>
-              <input
+              <label className="block text-sm font-medium mb-1">Search</label>
+              <Input
                 type="text"
                 name="search"
                 defaultValue={params.search}
                 placeholder="Search items..."
-                className="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-800"
               />
               <Button type="submit" size="sm" className="w-full mt-2">
                 Search
@@ -126,56 +125,32 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
 
             {/* Categories */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
+              <label className="block text-sm font-medium mb-2">Category</label>
               <div className="space-y-1">
                 <Link
                   href={buildUrl({ categoryId: undefined, page: undefined })}
-                  className={`block px-2 py-1 text-sm ${
-                    !params.categoryId
-                      ? "bg-blue-100 text-blue-800 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
+                  className={`block px-2 py-1 text-sm rounded ${
+                    !params.categoryId ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
                   }`}
                 >
                   All Categories
                 </Link>
-                {categories.map((category) => (
-                  <div key={category.id}>
-                    <Link
-                      href={buildUrl({ categoryId: category.id, page: undefined })}
-                      className={`block px-2 py-1 text-sm ${
-                        params.categoryId === category.id
-                          ? "bg-blue-100 text-blue-800 font-medium"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      {category.icon} {category.name}
-                    </Link>
-                    {category.children.map((child) => (
-                      <Link
-                        key={child.id}
-                        href={buildUrl({ categoryId: child.id, page: undefined })}
-                        className={`block px-4 py-1 text-sm ${
-                          params.categoryId === child.id
-                            ? "bg-blue-100 text-blue-800 font-medium"
-                            : "text-gray-600 hover:bg-gray-100"
-                        }`}
-                      >
-                        {child.icon} {child.name}
-                      </Link>
-                    ))}
-                  </div>
+                {allCategories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={buildUrl({ categoryId: cat.id, page: undefined })}
+                    className={`block px-2 py-1 text-sm rounded ${
+                      params.categoryId === cat.id ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+                    }`}
+                  >
+                    {cat.icon} {cat.name}
+                  </Link>
                 ))}
               </div>
             </div>
 
-            {/* Clear Filters */}
             {(params.search || params.categoryId) && (
-              <Link
-                href="/browse"
-                className="block mt-4 text-center text-sm text-red-600 hover:underline"
-              >
+              <Link href="/browse" className="block mt-4 text-center text-sm text-destructive hover:underline">
                 Clear all filters
               </Link>
             )}
@@ -185,56 +160,46 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         {/* Main Content */}
         <main className="flex-1">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold">
               Found Items
               {params.search && (
-                <span className="text-gray-500 font-normal">
-                  {" "}
-                  matching &quot;{params.search}&quot;
-                </span>
+                <span className="text-muted-foreground font-normal"> matching &quot;{params.search}&quot;</span>
               )}
             </h1>
-            <p className="text-gray-600">
-              {pagination.total} item{pagination.total !== 1 ? "s" : ""}
-            </p>
+            <p className="text-muted-foreground">{total} item{total !== 1 ? "s" : ""}</p>
           </div>
 
-          {items.length > 0 ? (
+          {formattedItems.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {items.map((item) => (
+                {formattedItems.map((item) => (
                   <ReportCard key={item.id} report={item} showClaimButton />
                 ))}
               </div>
 
-              {/* Pagination */}
-              {pagination.totalPages > 1 && (
+              {totalPages > 1 && (
                 <div className="mt-8 flex items-center justify-center gap-2">
                   {currentPage > 1 && (
                     <Link href={buildUrl({ page: String(currentPage - 1) })}>
-                      <Button variant="secondary" size="sm">
-                        Previous
-                      </Button>
+                      <Button variant="outline" size="sm">Previous</Button>
                     </Link>
                   )}
-                  <span className="px-4 py-2 text-sm text-gray-600">
-                    Page {currentPage} of {pagination.totalPages}
+                  <span className="px-4 py-2 text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
                   </span>
-                  {currentPage < pagination.totalPages && (
+                  {currentPage < totalPages && (
                     <Link href={buildUrl({ page: String(currentPage + 1) })}>
-                      <Button variant="secondary" size="sm">
-                        Next
-                      </Button>
+                      <Button variant="outline" size="sm">Next</Button>
                     </Link>
                   )}
                 </div>
               )}
             </>
           ) : (
-            <div className="text-center py-16 border border-dashed border-gray-300">
-              <p className="text-gray-500 mb-4">No found items match your criteria</p>
+            <div className="text-center py-16 border border-dashed rounded-md">
+              <p className="text-muted-foreground mb-4">No found items match your criteria</p>
               <Link href="/browse">
-                <Button variant="secondary">Clear Filters</Button>
+                <Button variant="outline">Clear Filters</Button>
               </Link>
             </div>
           )}

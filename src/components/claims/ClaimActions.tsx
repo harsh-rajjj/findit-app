@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 interface ClaimActionsProps {
   claimId: string;
@@ -10,25 +10,21 @@ interface ClaimActionsProps {
 
 export function ClaimActions({ claimId }: ClaimActionsProps) {
   const router = useRouter();
-  const [isApproving, setIsApproving] = useState(false);
-  const [isRejecting, setIsRejecting] = useState(false);
+  const [loading, setLoading] = useState<"approve" | "reject" | null>(null);
 
   const handleAction = async (action: "approve" | "reject") => {
-    const setter = action === "approve" ? setIsApproving : setIsRejecting;
-    setter(true);
-
+    setLoading(action);
     try {
       const response = await fetch(`/api/claims/${claimId}/${action}`, {
         method: "POST",
       });
-
       if (response.ok) {
         router.refresh();
       }
-    } catch (error) {
-      console.error(`Failed to ${action}:`, error);
+    } catch {
+      console.error(`Failed to ${action} claim`);
     } finally {
-      setter(false);
+      setLoading(null);
     }
   };
 
@@ -36,21 +32,18 @@ export function ClaimActions({ claimId }: ClaimActionsProps) {
     <div className="flex gap-2">
       <Button
         size="sm"
-        variant="primary"
         onClick={() => handleAction("approve")}
-        isLoading={isApproving}
-        disabled={isRejecting}
+        disabled={loading !== null}
       >
-        Approve
+        {loading === "approve" ? "..." : "Approve"}
       </Button>
       <Button
         size="sm"
-        variant="danger"
+        variant="destructive"
         onClick={() => handleAction("reject")}
-        isLoading={isRejecting}
-        disabled={isApproving}
+        disabled={loading !== null}
       >
-        Reject
+        {loading === "reject" ? "..." : "Reject"}
       </Button>
     </div>
   );

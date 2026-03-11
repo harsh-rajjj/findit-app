@@ -19,10 +19,7 @@ export const createReportSchema = z.object({
     .string()
     .max(200, "Location description must be at most 200 characters")
     .optional(),
-  lostFoundDate: z.coerce.date({
-    required_error: "Please select a date",
-    invalid_type_error: "Invalid date format",
-  }),
+  lostFoundDate: z.string().min(1, "Please select a date"),
   verificationQuestion: z
     .string()
     .max(200, "Verification question must be at most 200 characters")
