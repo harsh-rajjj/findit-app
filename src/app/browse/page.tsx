@@ -6,6 +6,8 @@ import { ReportCard } from "@/components/reports/ReportCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+export const dynamic = "force-dynamic";
+
 interface BrowsePageProps {
   searchParams: Promise<{
     search?: string;
@@ -37,50 +39,52 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
       ilike(reports.title, `%${params.search}%`),
       ilike(reports.description, `%${params.search}%`)
     );
-    
-    const rows = await db
-      .select({
-        id: reports.id, type: reports.type, title: reports.title,
-        description: reports.description, status: reports.status,
-        createdAt: reports.createdAt, imageUrl: reports.imageUrl,
-        categoryName: categories.name, categoryIcon: categories.icon,
-      })
-      .from(reports)
-      .leftJoin(categories, eq(reports.categoryId, categories.id))
-      .where(and(...conditions, searchCondition))
-      .orderBy(desc(reports.createdAt))
-      .offset((currentPage - 1) * limit)
-      .limit(limit);
 
-    const [totalRow] = await db
-      .select({ value: count() })
-      .from(reports)
-      .where(and(...conditions, searchCondition));
+    const [rows, totalRows] = await Promise.all([
+      db
+        .select({
+          id: reports.id, type: reports.type, title: reports.title,
+          description: reports.description, status: reports.status,
+          createdAt: reports.createdAt, imageUrl: reports.imageUrl,
+          categoryName: categories.name, categoryIcon: categories.icon,
+        })
+        .from(reports)
+        .leftJoin(categories, eq(reports.categoryId, categories.id))
+        .where(and(...conditions, searchCondition))
+        .orderBy(desc(reports.createdAt))
+        .offset((currentPage - 1) * limit)
+        .limit(limit),
+      db
+        .select({ value: count() })
+        .from(reports)
+        .where(and(...conditions, searchCondition)),
+    ]);
 
     items = rows;
-    total = totalRow.value;
+    total = totalRows[0]?.value ?? 0;
   } else {
-    const rows = await db
-      .select({
-        id: reports.id, type: reports.type, title: reports.title,
-        description: reports.description, status: reports.status,
-        createdAt: reports.createdAt, imageUrl: reports.imageUrl,
-        categoryName: categories.name, categoryIcon: categories.icon,
-      })
-      .from(reports)
-      .leftJoin(categories, eq(reports.categoryId, categories.id))
-      .where(and(...conditions))
-      .orderBy(desc(reports.createdAt))
-      .offset((currentPage - 1) * limit)
-      .limit(limit);
-
-    const [totalRow] = await db
-      .select({ value: count() })
-      .from(reports)
-      .where(and(...conditions));
+    const [rows, totalRows] = await Promise.all([
+      db
+        .select({
+          id: reports.id, type: reports.type, title: reports.title,
+          description: reports.description, status: reports.status,
+          createdAt: reports.createdAt, imageUrl: reports.imageUrl,
+          categoryName: categories.name, categoryIcon: categories.icon,
+        })
+        .from(reports)
+        .leftJoin(categories, eq(reports.categoryId, categories.id))
+        .where(and(...conditions))
+        .orderBy(desc(reports.createdAt))
+        .offset((currentPage - 1) * limit)
+        .limit(limit),
+      db
+        .select({ value: count() })
+        .from(reports)
+        .where(and(...conditions)),
+    ]);
 
     items = rows;
-    total = totalRow.value;
+    total = totalRows[0]?.value ?? 0;
   }
 
   const totalPages = Math.ceil(total / limit);

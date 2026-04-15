@@ -6,43 +6,49 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReportCard } from "@/components/reports/ReportCard";
 
-export default async function HomePage() {
-  // Get stats
-  let totalReports = 0, resolvedReports = 0, activeFoundItems = 0;
-  try {
-    const [total] = await db.select({ value: count() }).from(reports);
-    const [resolved] = await db.select({ value: count() }).from(reports).where(eq(reports.status, "RESOLVED"));
-    const [activeFound] = await db.select({ value: count() }).from(reports).where(and(eq(reports.type, "FOUND"), eq(reports.status, "ACTIVE")));
-    totalReports = total.value;
-    resolvedReports = resolved.value;
-    activeFoundItems = activeFound.value;
-  } catch { /* DB not ready */ }
+export const dynamic = "force-dynamic";
 
-  // Get recent found items
+export default async function HomePage() {
+  let totalReports = 0, resolvedReports = 0, activeFoundItems = 0;
   let recentItems: Array<{
     id: string; type: string; title: string; description: string; status: string; createdAt: Date;
     imageUrl: string | null;
     category: { name: string; icon: string | null } | null;
   }> = [];
   try {
-    const items = await db
-      .select({
-        id: reports.id,
-        type: reports.type,
-        title: reports.title,
-        description: reports.description,
-        status: reports.status,
-        createdAt: reports.createdAt,
-        imageUrl: reports.imageUrl,
-        categoryName: categories.name,
-        categoryIcon: categories.icon,
-      })
-      .from(reports)
-      .leftJoin(categories, eq(reports.categoryId, categories.id))
-      .where(and(eq(reports.type, "FOUND"), eq(reports.status, "ACTIVE")))
-      .orderBy(desc(reports.createdAt))
-      .limit(6);
-    
+    const [total, resolved, activeFound, items] = await Promise.all([
+      db.select({ value: count() }).from(reports),
+      db
+        .select({ value: count() })
+        .from(reports)
+        .where(eq(reports.status, "RESOLVED")),
+      db
+        .select({ value: count() })
+        .from(reports)
+        .where(and(eq(reports.type, "FOUND"), eq(reports.status, "ACTIVE"))),
+      db
+        .select({
+          id: reports.id,
+          type: reports.type,
+          title: reports.title,
+          description: reports.description,
+          status: reports.status,
+          createdAt: reports.createdAt,
+          imageUrl: reports.imageUrl,
+          categoryName: categories.name,
+          categoryIcon: categories.icon,
+        })
+        .from(reports)
+        .leftJoin(categories, eq(reports.categoryId, categories.id))
+        .where(and(eq(reports.type, "FOUND"), eq(reports.status, "ACTIVE")))
+        .orderBy(desc(reports.createdAt))
+        .limit(6),
+    ]);
+
+    totalReports = total[0]?.value ?? 0;
+    resolvedReports = resolved[0]?.value ?? 0;
+    activeFoundItems = activeFound[0]?.value ?? 0;
+
     recentItems = items.map(item => ({
       id: item.id,
       type: item.type,

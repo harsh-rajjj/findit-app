@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 
 export async function GET() {
   try {
@@ -11,14 +11,33 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const items = await db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.userId, session.user.id))
-      .orderBy(desc(notifications.createdAt))
-      .limit(20);
+    const [items, unreadResult] = await Promise.all([
+      db
+        .select({
+          id: notifications.id,
+          type: notifications.type,
+          title: notifications.title,
+          message: notifications.message,
+          linkUrl: notifications.linkUrl,
+          isRead: notifications.isRead,
+          createdAt: notifications.createdAt,
+        })
+        .from(notifications)
+        .where(eq(notifications.userId, session.user.id))
+        .orderBy(desc(notifications.createdAt))
+        .limit(20),
+      db
+        .select({ value: count() })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.userId, session.user.id),
+            eq(notifications.isRead, false)
+          )
+        ),
+    ]);
 
-    const unreadCount = items.filter((n) => !n.isRead).length;
+    const unreadCount = unreadResult[0]?.value ?? 0;
 
     return NextResponse.json({ notifications: items, unreadCount });
   } catch (error) {

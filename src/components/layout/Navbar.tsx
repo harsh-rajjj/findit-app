@@ -213,6 +213,10 @@ export function Navbar() {
           }`}
         >
           <div className="flex flex-col gap-1 pt-2 border-t border-border">
+            <div className="flex items-center justify-between px-2 pb-1">
+              <ThemeToggle />
+              {status === "authenticated" && <NotificationBell />}
+            </div>
             <Link
               href="/browse"
               className="flex items-center gap-3 px-3 py-3 hover:bg-accent rounded-lg transition-colors touch-target"
@@ -248,10 +252,10 @@ export function Navbar() {
                 </Link>
                 <div className="grid grid-cols-2 gap-2 px-2 mt-2">
                   <Link href="/report/new?type=lost" onClick={() => setIsMenuOpen(false)}>
-                    <Button variant="destructive" size="sm" className="w-full shadow-sm">I Lost Something</Button>
+                    <Button variant="destructive" size="sm" className="w-full h-10 rounded-lg shadow-none">I Lost Something</Button>
                   </Link>
                   <Link href="/report/new?type=found" onClick={() => setIsMenuOpen(false)}>
-                    <Button size="sm" className="w-full gradient-primary text-white border-0 shadow-sm">I Found Something</Button>
+                    <Button size="sm" className="w-full h-10 rounded-lg gradient-primary text-white border-0 shadow-none">I Found Something</Button>
                   </Link>
                 </div>
                 <div className="border-t border-border mt-2 pt-2">

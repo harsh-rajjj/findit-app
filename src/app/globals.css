@@ -104,6 +104,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+  overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -372,6 +373,14 @@ img {
 
 /* Mobile specific */
 @media (max-width: 768px) {
+  /* Prevent iOS Safari auto-zoom on focused form controls */
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
+  }
+
   .mobile-stack {
     flex-direction: column;
   }
@@ -380,6 +389,31 @@ img {
   }
   .mobile-hidden {
     display: none;
+  }
+}
+
+/* Touch devices: avoid expensive hover-only effects */
+@media (hover: none) and (pointer: coarse) {
+  .card-hover:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .group:hover img {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-slide-down,
+  .animate-slide-up,
+  .animate-scale-in,
+  .animate-float,
+  .animate-spin,
+  .animate-pulse-glow {
+    animation: none !important;
   }
 }
 
