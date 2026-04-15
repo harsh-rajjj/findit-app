@@ -6,6 +6,22 @@ import { Footer } from "@/components/layout/Footer";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
+const themeInitScript = `
+(() => {
+  try {
+    const stored = localStorage.getItem("findit-theme");
+    const isValid = stored === "light" || stored === "dark" || stored === "system";
+    const theme = isValid ? stored : "system";
+    const resolved = theme === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : theme;
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(resolved);
+    root.style.colorScheme = resolved;
+  } catch {}
+})();
+`;
 
 export const metadata: Metadata = {
   title: "FindIt - Lost & Found Platform",
@@ -19,6 +35,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body
         suppressHydrationWarning
         className={`${inter.className} min-h-screen flex flex-col`}

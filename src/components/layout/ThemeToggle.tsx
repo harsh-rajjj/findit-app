@@ -6,7 +6,12 @@ import { useState, useRef, useEffect } from "react";
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -48,7 +53,9 @@ export function ThemeToggle() {
     },
   ];
 
-  const currentIcon = options.find((o) => o.value === theme)?.icon || options[0].icon;
+  // Avoid hydration mismatch when saved theme differs from server default.
+  const safeTheme = mounted ? theme : "system";
+  const currentIcon = options.find((o) => o.value === safeTheme)?.icon || options[2].icon;
 
   return (
     <div className="relative" ref={panelRef}>
@@ -71,14 +78,14 @@ export function ThemeToggle() {
                 setIsOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                theme === option.value
+                safeTheme === option.value
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent"
               }`}
             >
               {option.icon}
               {option.label}
-              {theme === option.value && (
+              {safeTheme === option.value && (
                 <svg className="w-3.5 h-3.5 ml-auto text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>

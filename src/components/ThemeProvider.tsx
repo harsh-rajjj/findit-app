@@ -26,23 +26,18 @@ function getSystemTheme(): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  // Load saved theme from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("findit-theme") as Theme | null;
-    if (saved && ["light", "dark", "system"].includes(saved)) {
-      setThemeState(saved);
-    }
-    setMounted(true);
-  }, []);
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "system";
+    const saved = localStorage.getItem("findit-theme");
+    return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+  });
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
 
   // Apply the theme to the document
   useEffect(() => {
-    if (!mounted) return;
-
     const resolved = theme === "system" ? getSystemTheme() : theme;
     setResolvedTheme(resolved);
 
@@ -52,12 +47,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     // Also update color-scheme for native elements like scrollbars
     root.style.colorScheme = resolved;
-  }, [theme, mounted]);
+  }, [theme]);
 
   // Listen for OS theme changes when in system mode
   useEffect(() => {
-    if (!mounted) return;
-
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
       if (theme === "system") {
@@ -72,7 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
-  }, [theme, mounted]);
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
