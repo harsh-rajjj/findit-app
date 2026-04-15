@@ -155,16 +155,19 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2 space-y-8">
           {/* Pending Claims */}
           {claimsOnMyItems.length > 0 && (
-            <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-amber-50/50 animate-fade-in-up">
+            <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-amber-50/50 dark:from-amber-950/25 dark:to-amber-950/10 dark:border-amber-400/25 animate-fade-in-up">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm">⚡</span>
+                  <span className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center text-sm">⚡</span>
                   Claims Requiring Your Review
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {claimsOnMyItems.map((claim) => (
-                  <div key={claim.id} className="flex items-center justify-between bg-white border border-amber-100 p-4 rounded-xl transition-all hover:shadow-sm">
+                  <div
+                    key={claim.id}
+                    className="flex items-center justify-between bg-white/90 border border-amber-100 p-4 rounded-xl transition-all hover:shadow-sm dark:bg-card/40 dark:border-amber-400/15"
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{claim.reportTitle}</p>
                       <p className="text-sm text-muted-foreground">Claim by <span className="font-medium">@{claim.claimerName}</span></p>

@@ -14,7 +14,7 @@ interface ClaimDisputeActionsProps {
 export function ClaimDisputeActions({ claimId, claimStatus, isOwner, isClaimer }: ClaimDisputeActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showConfirm, setShowConfirm] = useState<"withdraw" | "revoke" | null>(null);
+  const [showConfirm, setShowConfirm] = useState<"withdraw" | "revoke" | "reclaim" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleWithdraw = async () => {
@@ -55,12 +55,33 @@ export function ClaimDisputeActions({ claimId, claimStatus, isOwner, isClaimer }
     }
   };
 
+  const handleReclaim = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/reclaim`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to reopen claim");
+      } else {
+        router.refresh();
+      }
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setLoading(false);
+      setShowConfirm(null);
+    }
+  };
+
   // Claimer can withdraw if status is PENDING or APPROVED
   const canWithdraw = isClaimer && (claimStatus === "PENDING" || claimStatus === "APPROVED");
   // Owner can revoke if status is APPROVED
   const canRevoke = isOwner && claimStatus === "APPROVED";
+  // Claimer can reopen a rejected/withdrawn claim
+  const canReclaim = isClaimer && (claimStatus === "REJECTED" || claimStatus === "WITHDRAWN" || claimStatus === "REVOKED");
 
-  if (!canWithdraw && !canRevoke) return null;
+  if (!canWithdraw && !canRevoke && !canReclaim) return null;
 
   return (
     <div className="space-y-3">
@@ -73,19 +94,31 @@ export function ClaimDisputeActions({ claimId, claimStatus, isOwner, isClaimer }
       {showConfirm ? (
         <div className="p-4 border-2 border-amber-300 bg-amber-50 rounded-xl animate-scale-in">
           <p className="text-sm font-semibold text-amber-900 mb-1">
-            {showConfirm === "withdraw" ? "⚠️ Withdraw this claim?" : "⚠️ Revoke this approval?"}
+            {showConfirm === "withdraw"
+              ? "⚠️ Withdraw this claim?"
+              : showConfirm === "revoke"
+                ? "⚠️ Revoke this approval?"
+                : "⚠️ Reopen this claim?"}
           </p>
           <p className="text-xs text-amber-700 mb-3">
-            {showConfirm === "withdraw"
-              ? "This will cancel your claim. If it was already approved, the item will be put back as active for other people to claim."
-              : "This will undo the approval and put the item back as active. The claimer will be notified and other people can submit new claims."
-            }
+            {showConfirm === "withdraw" &&
+              "This will cancel your claim. If it was already approved, the item will be put back as active for other people to claim."}
+            {showConfirm === "revoke" &&
+              "This will undo the approval and put the item back as active. The claimer will be notified and other people can submit new claims."}
+            {showConfirm === "reclaim" &&
+              "This will reopen your claim for review again. Consider adding extra proof in the messages after reopening."}
           </p>
           <div className="flex gap-2">
             <Button
               size="sm"
               variant="destructive"
-              onClick={showConfirm === "withdraw" ? handleWithdraw : handleRevoke}
+              onClick={
+                showConfirm === "withdraw"
+                  ? handleWithdraw
+                  : showConfirm === "revoke"
+                    ? handleRevoke
+                    : handleReclaim
+              }
               disabled={loading}
               className="text-xs h-8"
             >
@@ -98,7 +131,11 @@ export function ClaimDisputeActions({ claimId, claimStatus, isOwner, isClaimer }
                   Processing...
                 </span>
               ) : (
-                showConfirm === "withdraw" ? "Yes, Withdraw" : "Yes, Revoke"
+                showConfirm === "withdraw"
+                  ? "Yes, Withdraw"
+                  : showConfirm === "revoke"
+                    ? "Yes, Revoke"
+                    : "Yes, Reopen"
               )}
             </Button>
             <Button
@@ -134,6 +171,22 @@ export function ClaimDisputeActions({ claimId, claimStatus, isOwner, isClaimer }
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
               Revoke Approval — Mistake
+            </button>
+          )}
+          {canReclaim && (
+            <button
+              onClick={() => setShowConfirm("reclaim")}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 9A8 8 0 006.34 6.34L4 10m0 5a8 8 0 0013.66 2.66L20 14" />
+              </svg>
+              {claimStatus === "REJECTED"
+                ? "Appeal Rejection"
+                : claimStatus === "REVOKED"
+                  ? "Re-appeal Revocation"
+                  : "Reclaim This Item"}
             </button>
           )}
         </div>

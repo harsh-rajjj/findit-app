@@ -181,12 +181,23 @@ export default async function ReportPage({ params }: ReportPageProps) {
               {!isOwner && !isLost && report.status === "ACTIVE" && session?.user && (
                 <div className="pt-2">
                   {existingClaim ? (
-                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                      <p className="text-sm text-amber-800 font-medium mb-2">You&apos;ve submitted a claim</p>
+                    <div className="p-4 bg-amber-50 border border-amber-200 dark:bg-amber-950/25 dark:border-amber-400/25 rounded-xl">
+                      <p className="text-sm text-amber-900 dark:text-amber-100 font-medium mb-2">You&apos;ve submitted a claim</p>
                       <div className="flex items-center justify-between">
-                        <Badge variant="secondary">{existingClaim.status}</Badge>
+                        <Badge
+                          variant="secondary"
+                          className="dark:bg-amber-500/15 dark:text-amber-100 dark:border-amber-400/20"
+                        >
+                          {existingClaim.status}
+                        </Badge>
                         <Link href={`/claim/${existingClaim.id}`}>
-                          <Button size="sm" variant="outline" className="text-xs">View Details →</Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs dark:bg-background/40 dark:border-border/60"
+                          >
+                            View Details →
+                          </Button>
                         </Link>
                       </div>
                     </div>
