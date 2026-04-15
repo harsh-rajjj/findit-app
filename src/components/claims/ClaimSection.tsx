@@ -19,6 +19,8 @@ export function ClaimSection({ reportId, hasVerificationQuestion }: ClaimSection
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [proofImageUrls, setProofImageUrls] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const {
     register,
@@ -32,10 +34,14 @@ export function ClaimSection({ reportId, hasVerificationQuestion }: ClaimSection
   const onSubmit = async (data: CreateClaimInput) => {
     setError(null);
     try {
+      if (isUploading) {
+        setError("Please wait for image uploads to finish.");
+        return;
+      }
       const response = await fetch("/api/claims", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, proofImageUrls }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -45,6 +51,31 @@ export function ClaimSection({ reportId, hasVerificationQuestion }: ClaimSection
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
+    }
+  };
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = Math.max(0, 5 - proofImageUrls.length);
+    const picked = Array.from(files).slice(0, remaining);
+    if (picked.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of picked) {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || "Upload failed");
+        uploaded.push(json.url as string);
+      }
+      setProofImageUrls((prev) => [...prev, ...uploaded].slice(0, 5));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -84,6 +115,43 @@ export function ClaimSection({ reportId, hasVerificationQuestion }: ClaimSection
           className="mt-1.5 min-h-[100px]"
         />
         {errors.proofText && <p className="text-sm text-destructive mt-1">{errors.proofText.message}</p>}
+      </div>
+
+      <div>
+        <Label className="text-sm font-medium">Proof Images (optional)</Label>
+        <p className="text-xs text-muted-foreground mt-1">
+          Upload up to 5 photos that help prove ownership (receipts, unique marks, original packaging, etc.).
+        </p>
+        <Input
+          type="file"
+          accept="image/*"
+          multiple
+          className="mt-2 h-11"
+          onChange={(e) => uploadFiles(e.target.files)}
+          disabled={isUploading || proofImageUrls.length >= 5}
+        />
+        {proofImageUrls.length > 0 && (
+          <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {proofImageUrls.map((url) => (
+              <div key={url} className="relative rounded-lg overflow-hidden border border-border/60 bg-muted/20">
+                <img src={url} alt="Proof upload" className="h-20 w-full object-cover" />
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 bg-background/80 hover:bg-background text-foreground rounded-md p-1 shadow-sm"
+                  aria-label="Remove image"
+                  onClick={() => setProofImageUrls((prev) => prev.filter((u) => u !== url))}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {isUploading && (
+          <p className="text-xs text-muted-foreground mt-2">Uploading images…</p>
+        )}
       </div>
 
       {hasVerificationQuestion && (

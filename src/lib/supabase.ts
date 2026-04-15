@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 let _supabase: SupabaseClient | null = null;
+let _supabaseAdmin: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
   if (_supabase) return _supabase;
@@ -16,4 +17,20 @@ export function getSupabase(): SupabaseClient {
 
   _supabase = createClient(supabaseUrl, supabaseAnonKey);
   return _supabase;
+}
+
+export function getSupabaseAdmin(): SupabaseClient {
+  if (_supabaseAdmin) return _supabaseAdmin;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "Missing Supabase server config. Please add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to your .env file."
+    );
+  }
+
+  _supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+  return _supabaseAdmin;
 }

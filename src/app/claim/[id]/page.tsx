@@ -26,6 +26,7 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
       id: claims.id,
       status: claims.status,
       proofText: claims.proofText,
+      proofImageUrls: claims.proofImageUrls,
       verificationAnswer: claims.verificationAnswer,
       pickupTime: claims.pickupTime,
       pickupLocation: claims.pickupLocation,
@@ -91,6 +92,15 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
     REVOKED: { color: "bg-orange-100 text-orange-800 border-orange-200", icon: "⚠️", label: "Approval Revoked" },
   };
   const status = statusConfig[claim.status] || statusConfig.PENDING;
+  const proofImages: string[] = (() => {
+    if (!claim.proofImageUrls) return [];
+    try {
+      const parsed = JSON.parse(claim.proofImageUrls) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((u) => typeof u === "string") : [];
+    } catch {
+      return [];
+    }
+  })();
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in">
@@ -149,6 +159,25 @@ export default async function ClaimPage({ params }: ClaimPageProps) {
                 <p className="text-sm leading-relaxed whitespace-pre-wrap bg-muted/30 p-3 rounded-lg">
                   {claim.proofText}
                 </p>
+                {proofImages.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {proofImages.map((url) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group relative rounded-xl overflow-hidden border border-border/60 bg-muted/20"
+                      >
+                        <img
+                          src={url}
+                          alt="Proof of ownership"
+                          className="h-32 w-full object-cover group-hover:scale-[1.02] transition-transform"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {claim.verificationAnswer && (

@@ -42,6 +42,10 @@ export const createClaimSchema = z.object({
     .string()
     .min(10, "Please provide more details about your claim")
     .max(1000, "Proof text must be at most 1000 characters"),
+  proofImageUrls: z
+    .array(z.string().url("Invalid image URL"))
+    .max(5, "You can upload up to 5 images")
+    .optional(),
   verificationAnswer: z
     .string()
     .max(200, "Answer must be at most 200 characters")

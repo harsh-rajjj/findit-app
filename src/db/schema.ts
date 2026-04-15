@@ -51,6 +51,8 @@ export const claims = pgTable("claims", {
   claimerId: text("claimer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   status: text("status").notNull().default("PENDING"), // "PENDING", "APPROVED", "REJECTED"
   proofText: text("proof_text").notNull(),
+  // JSON-serialized string[] of uploaded image URLs
+  proofImageUrls: text("proof_image_urls"),
   verificationAnswer: text("verification_answer"),
   pickupTime: timestamp("pickup_time"),
   pickupLocation: text("pickup_location"),

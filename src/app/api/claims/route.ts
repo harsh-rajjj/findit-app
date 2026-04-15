@@ -70,6 +70,9 @@ export async function POST(request: Request) {
         reportId: validated.reportId,
         claimerId: session.user.id,
         proofText: validated.proofText,
+        proofImageUrls: validated.proofImageUrls
+          ? JSON.stringify(validated.proofImageUrls)
+          : null,
         verificationAnswer: validated.verificationAnswer ?? null,
         pickupTime: validated.pickupTime ? new Date(validated.pickupTime) : null,
         pickupLocation: validated.pickupLocation ?? null,
