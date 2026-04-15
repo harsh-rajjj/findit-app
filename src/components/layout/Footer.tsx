@@ -57,12 +57,12 @@ export function Footer() {
           <div>
             <h3 className="font-semibold text-sm mb-3">Info</h3>
             <div className="flex flex-col gap-2">
-              <Link href="/matches" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              <Link href="/info/how-matching-works" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                 How Matching Works
               </Link>
-              <span className="text-sm text-muted-foreground">
+              <Link href="/info/dti-capstone-project" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                 DTI Capstone Project
-              </span>
+              </Link>
             </div>
           </div>
         </div>

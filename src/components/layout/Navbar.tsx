@@ -21,6 +21,14 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handleSignOut = async () => {
+    setIsProfileOpen(false);
+    setIsMenuOpen(false);
+    await signOut({ redirect: false, callbackUrl: "/" });
+    // Always stay on the current origin (prevents jumping to stale NEXTAUTH_URL).
+    window.location.assign("/");
+  };
+
   // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -144,7 +152,7 @@ export function Navbar() {
                       </Link>
                       <div className="border-t border-border mx-2 my-1" />
                       <button
-                        onClick={() => signOut({ callbackUrl: "/" })}
+                        onClick={handleSignOut}
                         className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg mx-1 transition-colors"
                         id="nav-signout"
                         style={{ width: "calc(100% - 8px)" }}
@@ -239,7 +247,7 @@ export function Navbar() {
                 </div>
                 <div className="border-t border-border mt-2 pt-2">
                   <button
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={handleSignOut}
                     className="flex items-center gap-3 w-full px-3 py-3 text-left text-destructive hover:bg-destructive/10 rounded-lg transition-colors touch-target"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

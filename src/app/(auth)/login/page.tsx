@@ -2,17 +2,18 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,10 +25,12 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
       const result = await signIn("credentials", {
         username,
         password,
         redirect: false,
+        callbackUrl,
       });
 
       if (result?.error) {
@@ -35,11 +38,24 @@ export default function LoginPage() {
         setLoading(false);
       } else {
         setRedirecting(true);
-        router.replace("/dashboard");
+        // Never jump to a different origin if NEXTAUTH_URL is stale.
+        const safeTarget = (url: string | null | undefined) => {
+          if (!url) return callbackUrl;
+          try {
+            const parsed = new URL(url, window.location.origin);
+            return parsed.origin === window.location.origin
+              ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+              : callbackUrl;
+          } catch {
+            return callbackUrl;
+          }
+        };
+        window.location.assign(safeTarget(result?.url));
       }
     } catch {
       setError("Something went wrong");
       setLoading(false);
+      setRedirecting(false);
     }
   };
 
@@ -117,14 +133,52 @@ export default function LoginPage() {
             </div>
             <div>
               <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Enter your password"
-                required
-                className="mt-1.5 h-11"
-              />
+              <div className="relative mt-1.5">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  required
+                  className="h-11 pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg
+                      className="h-5 w-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M10.733 5.076A10.744 10.744 0 0 1 12 5c6.5 0 10 7 10 7a19.19 19.19 0 0 1-3.41 4.38" />
+                      <path d="M6.61 6.61A19.05 19.05 0 0 0 2 12s3.5 7 10 7a10.8 10.8 0 0 0 5.39-1.61" />
+                      <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+                      <path d="M2 2l20 20" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             <Button
               type="submit"

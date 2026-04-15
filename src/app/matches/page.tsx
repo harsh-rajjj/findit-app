@@ -105,7 +105,9 @@ export default async function MatchesPage() {
               <Card
                 key={match.id}
                 className={`border-border/60 shadow-sm overflow-hidden animate-fade-in-up ${
-                  isHighConfidence ? "ring-2 ring-emerald-200 shadow-emerald-100" : ""
+                  isHighConfidence
+                    ? "ring-2 ring-emerald-200 shadow-emerald-100 dark:ring-emerald-400/30 dark:shadow-emerald-900/20"
+                    : ""
                 }`}
               >
                 {/* Confidence bar */}
@@ -124,7 +126,7 @@ export default async function MatchesPage() {
                       {match.confidenceScore}% Confidence
                     </Badge>
                     {isHighConfidence && (
-                      <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                      <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         High Match
                       </span>
@@ -135,11 +137,11 @@ export default async function MatchesPage() {
                   {/* Match comparison — stacks on mobile */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Lost Item */}
-                    <div className="border border-red-200/80 bg-red-50/50 p-4 rounded-xl">
+                    <div className="border border-red-200/80 bg-red-50/50 dark:border-red-400/30 dark:bg-red-950/20 p-4 rounded-xl">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="destructive" className="text-xs">LOST</Badge>
                         {isMyLostItem && (
-                          <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-medium">Your item</span>
+                          <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200 rounded-full font-medium">Your item</span>
                         )}
                       </div>
                       <h3 className="font-semibold">{match.lostReport?.title}</h3>
@@ -168,11 +170,11 @@ export default async function MatchesPage() {
                     </div>
 
                     {/* Found Item */}
-                    <div className="border border-emerald-200/80 bg-emerald-50/50 p-4 rounded-xl">
+                    <div className="border border-emerald-200/80 bg-emerald-50/50 dark:border-emerald-400/30 dark:bg-emerald-950/20 p-4 rounded-xl">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge className="gradient-primary text-white border-0 text-xs">FOUND</Badge>
                         {!isMyLostItem && (
-                          <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-full font-medium">Your item</span>
+                          <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200 rounded-full font-medium">Your item</span>
                         )}
                       </div>
                       <h3 className="font-semibold">{match.foundReport?.title}</h3>
