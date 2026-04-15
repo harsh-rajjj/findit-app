@@ -61,7 +61,7 @@ export function ThemeToggle() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg hover:bg-accent transition-colors touch-target"
+        className="relative size-10 rounded-xl border border-border/60 bg-background/40 hover:bg-accent/70 transition-colors flex items-center justify-center"
         aria-label="Toggle theme"
         id="theme-toggle"
       >

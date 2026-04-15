@@ -110,7 +110,11 @@ export default async function DashboardPage() {
         </div>
         <div className="flex gap-3">
           <Link href="/report/new?type=lost">
-            <Button variant="destructive" className="shadow-sm shadow-destructive/20" id="dash-report-lost">
+            <Button
+              variant="destructive"
+              className="h-10 px-4 rounded-xl border-0 shadow-none hover:opacity-95"
+              id="dash-report-lost"
+            >
               <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -118,7 +122,10 @@ export default async function DashboardPage() {
             </Button>
           </Link>
           <Link href="/report/new?type=found">
-            <Button className="gradient-primary text-white border-0 shadow-sm shadow-primary/20" id="dash-report-found">
+            <Button
+              className="h-10 px-4 rounded-xl gradient-primary text-white border-0 shadow-none hover:opacity-90"
+              id="dash-report-found"
+            >
               <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>

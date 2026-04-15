@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface Notification {
   id: string;
@@ -15,6 +16,7 @@ interface Notification {
 
 export function NotificationBell() {
   const router = useRouter();
+  const { status } = useSession();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -37,10 +39,21 @@ export function NotificationBell() {
 
   // Initial fetch + polling every 30 seconds
   useEffect(() => {
+    if (status !== "authenticated") {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    const interval = setInterval(() => {
+      // Avoid polling in background tabs.
+      if (document.visibilityState === "visible") {
+        fetchNotifications();
+      }
+    }, 45000);
     return () => clearInterval(interval);
-  }, []);
+  }, [status]);
 
   // Close on outside click
   useEffect(() => {
@@ -70,7 +83,6 @@ export function NotificationBell() {
     setIsOpen(false);
     if (notification.linkUrl) {
       router.push(notification.linkUrl);
-      router.refresh();
     }
   };
 
@@ -105,7 +117,7 @@ export function NotificationBell() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg hover:bg-accent transition-colors touch-target"
+        className="relative size-10 rounded-xl border border-border/60 bg-background/40 hover:bg-accent/70 transition-colors flex items-center justify-center"
         aria-label="Notifications"
         id="notification-bell"
       >

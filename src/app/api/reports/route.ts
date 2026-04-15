@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { reports } from "@/db/schema";
 import { createReportSchema } from "@/lib/validators/report";
 import { runMatchingAlgorithm, generateAndStoreEmbedding } from "@/lib/matching";
+import { and, eq, gte } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
@@ -18,6 +19,29 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const validated = createReportSchema.parse(body);
+
+    // Server-side duplicate guard for accidental rapid double-submits.
+    const duplicateWindow = new Date(Date.now() - 45_000);
+    const [existingRecent] = await db
+      .select({ id: reports.id })
+      .from(reports)
+      .where(
+        and(
+          eq(reports.userId, session.user.id),
+          eq(reports.type, validated.type),
+          eq(reports.title, validated.title),
+          eq(reports.description, validated.description),
+          gte(reports.createdAt, duplicateWindow)
+        )
+      )
+      .limit(1);
+
+    if (existingRecent) {
+      return NextResponse.json(
+        { message: "Report already submitted", id: existingRecent.id },
+        { status: 200 }
+      );
+    }
 
     const [report] = await db
       .insert(reports)

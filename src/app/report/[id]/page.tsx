@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ClaimSection } from "@/components/claims/ClaimSection";
 import { ClaimActions } from "@/components/claims/ClaimActions";
+import { DeleteReportButton } from "@/components/reports/DeleteReportButton";
 
 interface ReportPageProps {
   params: Promise<{ id: string }>;
@@ -176,6 +177,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
                 <span className="text-sm text-muted-foreground">Reported by</span>
                 <span className="text-sm font-medium">@{owner?.username}</span>
               </div>
+              {isOwner && <DeleteReportButton reportId={report.id} />}
 
               {/* Claim Button for non-owners on FOUND items */}
               {!isOwner && !isLost && report.status === "ACTIVE" && session?.user && (

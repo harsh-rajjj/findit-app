@@ -99,12 +99,21 @@ export function Navbar() {
 
                 <div className="flex items-center gap-2 ml-2">
                   <Link href="/report/new?type=lost">
-                    <Button variant="destructive" size="sm" className="shadow-sm shadow-destructive/20 transition-all hover:shadow-md hover:shadow-destructive/30" id="nav-report-lost">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 px-3 rounded-lg border-0 shadow-none transition-all hover:opacity-95"
+                      id="nav-report-lost"
+                    >
                       I Lost Something
                     </Button>
                   </Link>
                   <Link href="/report/new?type=found">
-                    <Button size="sm" className="gradient-primary text-white border-0 shadow-sm shadow-primary/20 transition-all hover:shadow-md hover:shadow-primary/30 hover:opacity-90" id="nav-report-found">
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 rounded-lg gradient-primary text-white border-0 shadow-none transition-all hover:opacity-90"
+                      id="nav-report-found"
+                    >
                       I Found Something
                     </Button>
                   </Link>

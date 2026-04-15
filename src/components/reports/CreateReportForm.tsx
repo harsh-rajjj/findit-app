@@ -29,6 +29,8 @@ export function CreateReportForm({ categories }: CreateReportFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [submitLocked, setSubmitLocked] = useState(false);
+  const submitLockRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -100,6 +102,10 @@ export function CreateReportForm({ categories }: CreateReportFormProps) {
   };
 
   const onSubmit = async (data: CreateReportInput) => {
+    // Guard against rapid double-clicks while network is slow.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    setSubmitLocked(true);
     setError(null);
     try {
       const response = await fetch("/api/reports", {
@@ -122,6 +128,9 @@ export function CreateReportForm({ categories }: CreateReportFormProps) {
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
+    } finally {
+      submitLockRef.current = false;
+      setSubmitLocked(false);
     }
   };
 
@@ -328,20 +337,20 @@ export function CreateReportForm({ categories }: CreateReportFormProps) {
           type="button"
           variant="outline"
           onClick={() => router.back()}
-          className="flex-1 h-12 font-medium"
+          className="flex-1 h-12 rounded-xl border-border/60 font-medium"
         >
           Cancel
         </Button>
         <Button
           type="submit"
           variant={isLost ? "destructive" : "default"}
-          disabled={isSubmitting || uploading}
-          className={`flex-1 h-12 font-medium shadow-md ${
-            !isLost ? "gradient-primary text-white border-0 shadow-primary/20" : "shadow-destructive/20"
+          disabled={isSubmitting || uploading || submitLocked}
+          className={`flex-1 h-12 rounded-xl font-medium border-0 shadow-none ${
+            !isLost ? "gradient-primary text-white hover:opacity-90" : "hover:opacity-95"
           }`}
           id="report-submit"
         >
-          {isSubmitting ? (
+          {isSubmitting || submitLocked ? (
             <span className="flex items-center gap-2">
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
